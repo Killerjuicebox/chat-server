@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title><%= pageName %></title>
+        <meta charset="UTF-8">
+        <link rel="icon" href="/assets/logo.png">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+        <link rel="stylesheet" href="/assets/style.css">
+    </head>
+
+    <body class="page" id="login">
+        <div class="login-logo">BTF</div>
+
+        <ul id="login-border" class="container flex-column border rounded-3" style="padding: 25px; padding-bottom: 50px;">
+            <h2><%= pageName %></h2>
+
+            <br>
+
+            <form action="#" onsubmit="load(); return false;">
+                <div class="mb-3">
+                    <label for="login-username" class="form-label" style="display: block;">
+                        <b>Username</b>
+                    </label>
+                    <input type="text" name="username" id="login-username" class="form-control-sm" placeholder="Username">
+                </div>
+
+                <div class="mb-3">
+                    <label for="login-password" class="form-label" style="display: block;">
+                        <b>Password</b>
+                    </label>
+                    <input type="password" name="password" id="login-password" class="form-control-sm" placeholder="Password">
+                </div>
+                
+                <% if (pageName === "Login") { %>
+                <button type="submit" class="btn btn-primary btn-outline-light" style="float: right; position: relative; left: 10px;">Login</button>
+                <button type="button" class="btn btn-outline-light" style="float: right; position: relative;" onclick="window.location.href = '/register'">Register</button>
+                <div id="spinner" class="spinner-border" style="float: right; position: relative; top: 3px; right: 10px; visibility: hidden;"></div>
+                <% } else { %>
+                <button type="submit" class="btn btn-primary btn-outline-light" style="float: right; position: relative; left: 10px">Register</button>
+                <div id="spinner" class="spinner-border" style="float: right; position: relative; top: 3px; visibility: hidden;"></div>
+                <% } %>
+            </form>
+        </ul>
+    </body>
+</html>
+
+<script>
+    const spinner = document.getElementById("spinner");
+
+    const username = document.getElementById("login-username");
+    const password = document.getElementById("login-password");
+
+    let loading = false;
+
+    const sleep = (ms) => {
+        return new Promise(r => setTimeout(r, ms));
+    }
+        
+    const load = () => {
+        if (!loading) {
+            loading = !loading;
+            spinner.style.visibility = "visible";
+            const http = new XMLHttpRequest();
+
+            http.onreadystatechange = function() {
+                if (http.readyState == 4) {
+                    console.log(http.status);
+                }
+                if (http.readyState == 4) {
+                    loading = !loading;
+                    spinner.style.visibility = "hidden";
+                    console.log(http.response);
+                    showMessage(http.response);
+                }
+            }
+
+            if (document.title === "Register") {
+                http.open("POST", "/register");
+                http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                http.send(`username=${username.value}&password=${encodeURIComponent(password.value)}`);
+            } else {
+                http.open("POST", "/login");
+                http.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                http.send(`username=${username.value}&password=${encodeURIComponent(password.value)}`);
+            }
+        }
+    }
+
+    const showMessage = async (message) => {
+        let messagebox = document.createElement("ul");
+        messagebox.className = "container flex-column border rounded-3";
+
+        messagebox.style.textAlign = "center";
+        messagebox.style.position = "relative";
+
+        messagebox.textContent = message;
+
+        document.getElementById("login-border").insertAdjacentElement("beforebegin", messagebox);
+
+        // messagebox.style.visibility = "visible";
+
+        messagebox.style.animation = "messageIn .5s ease 0s 1 normal forwards";
+
+        await sleep(3000);
+        messagebox.style.animation = "messageOut .5s ease 0s 1 reverse forwards";
+        await sleep(500);
+        messagebox.remove();
+    }
+</script>
