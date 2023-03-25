@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Chat</title>
+        <meta charset="UTF-8">
+        <link rel="icon" href="/assets/logo.png">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-0evHe/X+R7YkIZDRvuzKMRqM+OrBnVFBL6DOitfPri4tjfHxaWutUpFmBp4vmVor" crossorigin="anonymous">
+        <link rel="stylesheet" href="/assets/style.css">
+    </head>
+
+    <body class="page">
+
+        <div class="container flex-column border rounded-3" style="text-align: center;">
+            <h1>Chat</h1>
+            
+            <ul class="list-group" style="overflow: auto;" id="messagebox">
+                <% for (let i = 1; i <= 0; i++) { %>
+                    <li class="list-group-item" style="text-align: left;">
+                        Miles: This is message number: <%= i %>
+                    </li>
+                <% } %>
+            </ul>
+
+            <br>
+
+            <form action="#" onsubmit="sendMessage(); return false;">
+                <input type="text" name="chat" id="message" placeholder="Enter chat!">
+
+                <input type="submit">
+            </form>
+        </div>
+    </body>
+</html>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    const socket = io();
+    const inputBox = document.getElementById("message");
+    const messageBox = document.getElementById("messagebox");
+    // socket.emit("message", document.getElementById("message").value);
+
+    let sendMessage = () => {
+        if (inputBox.value != "") {
+            socket.emit("message", inputBox.value);
+
+            // showMessage(inputBox.value);
+
+            inputBox.value = null;
+        }
+    }
+
+    let showMessage = (message) => {
+        let messageElement = document.createElement("li");
+        messageElement.className = "list-group-item";
+        messageElement.style.textAlign = "left";
+        messageElement.textContent = message;
+
+        messageBox.insertAdjacentElement("beforeend", messageElement);
+    }
+
+    socket.on("message-incoming", data => {
+        console.log(data.value);
+        showMessage(data.value);
+    })
+</script>
