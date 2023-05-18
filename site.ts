@@ -1,14 +1,13 @@
 import express from "express";
 import { renderFile } from "ejs";
-import { createPool } from "mariadb";
 import { randomInt, createHash } from "crypto";
 import { Server } from "socket.io";
 import { createServer } from "http";
-const pool = createPool({host: "localhost", user: "miles", password: "pppppp7p", database: "accounts"});
+import { readFileSync, writeFileSync, existsSync } from "fs";
 const app = express();
 const websocketServer = createServer(app);
 const websocket = new Server(websocketServer);
-const port = 8080;
+const port = 8080; // move to env eventually
 
 app.use(express.urlencoded({extended: true}));
 
@@ -25,19 +24,25 @@ app.get("/register", (req, res) => {
 app.post("/register", (req, res) => {
     if (req.headers.referer != undefined && req.headers.referer?.includes("/register")) {
         let body: {username: string, password: string} = req.body;
-        console.log(body);
         const waitTime = randomInt(250, 750);
 
         sleep(waitTime).then(async () => {
-            let result: [{username: string, password: string, created: Date}] = await pool.query("select * from information;");
+            if (!existsSync("./data/users.json")) {
+                writeFileSync("./data/users.json", "[]");
+            }
+            let userFile = readFileSync("./data/users.json");
+
+            if (userFile.toString() == "") {
+                writeFileSync("./data/users.json", "[]");
+                userFile = readFileSync("./data/users.json");
+            }
+
+            const users: [{username: string, password: string, admin: boolean, created: string}] = JSON.parse(userFile.toString());
             let createAccount = true;
             let reason = "";
-            delete result["meta"];
 
-            for (let a in result) {
-                if (result[a].username == body.username) {
-                    console.log("Conflicting username");
-                    console.log(result[a]);
+            for (const user of users) {
+                if (user.username == body.username) {
                     createAccount = false;
                     reason = "Account with this username already exists";
                     break;
@@ -47,8 +52,7 @@ app.post("/register", (req, res) => {
                 }
             }
 
-            for (let i = 0; i < body.username.split("").length; i++) {
-                const letter = body.username.split("")[i];
+            for (const letter of body.username.split("")) {
                 if (!"abcdefghijklmnopqrstuvwxyz1234567890".includes(letter.toLowerCase())) {
                     createAccount = false;
                     reason = "Username must contain A-Z, 0-9 characters";
@@ -56,8 +60,13 @@ app.post("/register", (req, res) => {
                 }
             }
 
-            if (createAccount == true) {
-                await pool.query(`insert into information (username, password, created) values ('${body.username}', '${createHash("sha256").update(body.password).digest("base64")}', '${new Date().toISOString().split("T")[0]}')`);
+            if (createAccount) {
+                const registrationInfo = {username: body.username, password: createHash("sha256").update(body.password).digest("base64"), admin: false, created: new Date().toISOString().split("T")[0]};
+
+                users.push(registrationInfo);
+
+                writeFileSync("./data/users.json", JSON.stringify(users));
+
                 res.status(200).send("Account created");
             } else {
                 res.status(500).send(reason);
@@ -98,21 +107,13 @@ app.get("*", (req, res) => {
     res.redirect("/login");
 });
 
-/*app.listen(port, () => {
-    console.log(`Website listening on port ${port}`);
-});*/
-
 websocket.on("connection", socket => {
     // console.log("New connection on websocket server.");
     socket.on("message", data => {
         console.log(data);
-        websocket.sockets.emit("message-incoming", {value: data});
+        websocket.sockets.emit("message-incoming", {value: data}); // zero filtering going on here 😂
     });
 });
-
-/*websocketServer.listen(port + 1, () => {
-    console.log(`Websocket server open on port ${port + 1}`);
-});*/
 
 websocketServer.listen(port, () => {
     console.log(`Server listening on port ${port}`);
