@@ -33,7 +33,7 @@ app.get("/register", (req, res) => {
 });
 
 app.post("/register", (req, res) => {
-    if (req.headers.referer != undefined && req.headers.referer?.includes("/register")) {
+    if (req.headers.referer != undefined && req.headers.referer.includes("/register")) {
         let body: {username: string, password: string} = req.body;
         const waitTime = randomInt(250, 750);
 
