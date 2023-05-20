@@ -1,3 +1,4 @@
+import dotenv from "dotenv";
 import express from "express";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
@@ -6,10 +7,17 @@ import { randomInt, createHash } from "crypto";
 import { Server } from "socket.io";
 import { createServer } from "http";
 import { readFileSync, writeFileSync, existsSync } from "fs";
+dotenv.config();
 const app = express();
 const websocketServer = createServer(app);
 const websocket = new Server(websocketServer);
-const port = 8080; // move to env eventually
+const port = process.env.WEB_PORT;
+const secret = process.env.JWT_SECRET;
+
+if (typeof port != "string" || typeof secret != "string" || isNaN(parseInt(port))) {
+    console.log("Please check .env file.");
+    process.exit(0);
+}
 
 app.use(cookieParser());
 app.use(express.urlencoded({extended: true}));
@@ -97,7 +105,7 @@ app.post("/login", (req, res) => {
             let token: string;
             if (user.sessionToken == "") {
                 const payload = {username: user.username, admin: user.admin, created: user.created}; // create a separate object for the jwt to use when making a token so it doesnt take into account the password or sessionToken when generating a new password
-                token = jwt.sign(payload, "secret", { expiresIn: "1h"}); // placeholder, gonna change this to an env variable sometime in the future
+                token = jwt.sign(payload, secret, { expiresIn: "1h"});
             } else {
                 // TODO: properly check for token expiration
                 // if (user.sessionToken != "" && jwt.verify(user.sessionToken, "secret"))
@@ -131,7 +139,7 @@ app.get("/chat", (req, res) => {
     let user : {username: string, admin: boolean, created: string, iat: number, exp: number} | any;
     
     try {
-        user = jwt.verify(req.cookies.token, "secret");
+        user = jwt.verify(req.cookies.token, secret);
     } catch (err) {
         res.redirect("/login");
     }
@@ -155,7 +163,7 @@ websocket.on("connection", socket => {
         let user: { username: string } | any;
 
         try {
-            user = jwt.verify(cookie.slice(cookie.indexOf("=") + 1), "secret");
+            user = jwt.verify(cookie.slice(cookie.indexOf("=") + 1), secret);
 
             if ((data as string).replaceAll(" ", "") != "") {
                 websocket.sockets.emit("message-incoming", {value: (user.username + ": " + data).trim()}); // zero filtering going on here 😂
