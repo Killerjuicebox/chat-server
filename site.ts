@@ -14,9 +14,22 @@ const websocket = new Server(websocketServer);
 const port = process.env.WEB_PORT;
 const secret = process.env.JWT_SECRET;
 
+// Create users.json file if it doesn't exist
+if (!existsSync("./users.json")) {
+    writeFileSync("./users.json", "[]");
+}
+
+// Create .env file if it doesn't exist
+if (!existsSync("./.env")) {
+    writeFileSync("./.env", "WEB_PORT=\nJWT_SECRET=\n");
+    console.log("Please configure .env file.");
+    process.exit(1);
+}
+
+// Exit if .env file isn't correctly configured
 if (typeof port != "string" || typeof secret != "string" || isNaN(parseInt(port))) {
     console.log("Please check .env file.");
-    process.exit(0);
+    process.exit(1);
 }
 
 app.use(cookieParser());
@@ -38,14 +51,14 @@ app.post("/register", (req, res) => {
         const waitTime = randomInt(250, 750);
 
         sleep(waitTime).then(async () => {
-            if (!existsSync("./data/users.json")) {
-                writeFileSync("./data/users.json", "[]");
+            if (!existsSync("./users.json")) {
+                writeFileSync("./users.json", "[]");
             }
-            let userFile = readFileSync("./data/users.json");
+            let userFile = readFileSync("./users.json");
 
             if (userFile.toString() == "") {
-                writeFileSync("./data/users.json", "[]");
-                userFile = readFileSync("./data/users.json");
+                writeFileSync("./users.json", "[]");
+                userFile = readFileSync("./users.json");
             }
 
             const users: [{username: string, password: string, admin: boolean, sessionToken:string, created: string}] = JSON.parse(userFile.toString());
@@ -76,7 +89,7 @@ app.post("/register", (req, res) => {
 
                 users.push(registrationInfo);
 
-                writeFileSync("./data/users.json", JSON.stringify(users));
+                writeFileSync("./users.json", JSON.stringify(users));
 
                 res.status(200).send("Account created");
             } else {
@@ -97,7 +110,7 @@ app.get("/login", (req, res) => {
 app.post("/login", (req, res) => {
     let body : {username: string, password: string} = req.body;
     let passwordToCompare = createHash("sha256").update(body.password).digest("base64");
-    let users: [{username: string, password: string, admin: boolean, sessionToken: string, created: string}] = JSON.parse(readFileSync("./data/users.json").toString());
+    let users: [{username: string, password: string, admin: boolean, sessionToken: string, created: string}] = JSON.parse(readFileSync("./users.json").toString());
     let authenticatedUser = false;
     
     for (const user of users) {
@@ -107,16 +120,19 @@ app.post("/login", (req, res) => {
                 const payload = {username: user.username, admin: user.admin, created: user.created}; // create a separate object for the jwt to use when making a token so it doesnt take into account the password or sessionToken when generating a new password
                 token = jwt.sign(payload, secret, { expiresIn: "1h"});
             } else {
-                // TODO: properly check for token expiration
-                // if (user.sessionToken != "" && jwt.verify(user.sessionToken, "secret"))
-                token = user.sessionToken;
-                // console.log("user already had an active session token")
-                // let test = jwt.verify(user.sessionToken, "secret");
+                try { 
+                    if (jwt.verify(user.sessionToken, secret)) { 
+                        token = user.sessionToken;
+                    } else {
+                        token = "";
+                    }
+                } catch (err) {
+                    console.log("token expired");
+                    token = "";
+                }
             }
             res.cookie("token", token, {httpOnly: true});
             res.status(200).send("Logged in!");
-            // TODO: Figure out how to redirect to the chat room after the login has been verified.
-            // res.redirect("/chat");
             authenticatedUser = true;
             break;
         }

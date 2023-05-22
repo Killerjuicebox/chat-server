@@ -9,7 +9,7 @@
     </head>
 
     <body class="page" id="login">
-        <div class="login-logo">BTF</div>
+        <div class="login-logo">Chat</div>
 
         <ul id="login-border" class="container flex-column border rounded-3" style="padding: 25px; padding-bottom: 50px;">
             <h2><%= pageName %></h2>
@@ -62,7 +62,7 @@
             spinner.style.visibility = "visible";
             const http = new XMLHttpRequest();
 
-            http.onreadystatechange = function() {
+            http.onreadystatechange = async () => {
                 if (http.readyState == 4) {
                     console.log(http.status);
                 }
@@ -71,6 +71,11 @@
                     spinner.style.visibility = "hidden";
                     console.log(http.response);
                     showMessage(http.response);
+
+                    if (http.response === "Logged in!") {
+                        await sleep(1250);
+                        window.location.replace("/chat");
+                    }
                 }
             }
 
